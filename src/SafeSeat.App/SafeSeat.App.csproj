@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <StartupObject>SafeSeat.App.Program</StartupObject>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>SafeSeat</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SafeSeat.Core/SafeSeat.Core.csproj" />
+    <ProjectReference Include="../SafeSeat.Windows/SafeSeat.Windows.csproj" />
+  </ItemGroup>
+</Project>
