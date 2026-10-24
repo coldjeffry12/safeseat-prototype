@@ -7,9 +7,10 @@
 - [x] Private-machine diagnostics excluded from public preparation; public package privacy regression supplied.
 - [x] Unsigned GitHub build workflow and signing/privacy policy drafts prepared.
 - [x] Public repository created: [coldjeffry12/safeseat-prototype](https://github.com/coldjeffry12/safeseat-prototype).
-- [ ] Sanitized source upload and published commit verified.
-- [ ] Remote workflow run and unsigned release verified.
-- [ ] Signing provider application submitted and accepted.
+- [x] Sanitized source upload and published commit verified.
+- [x] Remote workflow run and unsigned release verified.
+- [x] Signing provider application submitted; receipt acknowledged.
+- [ ] Signing provider acceptance and generated apphost eligibility confirmed.
 - [ ] Signed release independently verified.
 - [ ] Physical device ownership and simultaneous controlled-app operation demonstrated.
 - [ ] All ten physical acceptance criteria passed.
@@ -17,4 +18,6 @@
 
 The implemented architecture cannot supply the last criterion. The full multiseat project remains incomplete.
 
-Publication checkpoint, 24 October 2026: the repository exists and source upload is in progress. No successful remote build, published binary release, signing application or signing approval is claimed by this checkpoint.
+Checkpoint, 24 October 2026: [source commit 66afd3f](https://github.com/coldjeffry12/safeseat-prototype/commit/66afd3f930ffed2ada72e9932107ead661fd2288) passed the [hosted Windows build](https://github.com/coldjeffry12/safeseat-prototype/actions/runs/40055295259), and the unchanged CI archives were published as [unsigned prerelease v0.1.0](https://github.com/coldjeffry12/safeseat-prototype/releases/tag/v0.1.0). The build had zero warnings/errors; 36 core tests, 210 adapter checks and 545 package privacy checks passed. These are software checks, not physical acceptance. The release tag and assets remain the original verified checkpoint.
+
+The SignPath Foundation application was submitted and receipt was acknowledged. External review, generated .NET apphost scope, signing roles/MFA verification and a signed build remain pending. Receipt is not approval or sponsorship. No signing credentials or provider integration have been configured. See the [verification report](VERIFICATION_REPORT.md) and [code signing policy](CODE_SIGNING_POLICY.md).
