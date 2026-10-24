@@ -1,0 +1,16 @@
+**/bin/
+**/obj/
+.vs/
+profiles/
+*.user
+*.suo
+*.zip
+publish/
+.build-home/
+.packages/
+docs/evidence/
+/.package-tests-*/
+*.pfx
+*.p12
+*.key
+*.pem
