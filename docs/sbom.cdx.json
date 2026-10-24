@@ -1,0 +1,67 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "type": "application",
+      "bom-ref": "safeseat",
+      "name": "SafeSeat controlled-app research prototype",
+      "version": "0.1.0",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "description": "Limited app-owned input demonstration; arbitrary Windows multiseat is incomplete."
+    },
+    "properties": [{"name": "inventory.scope", "value": "Declared framework/build dependencies only; not exhaustive shared-framework internals. See DEPENDENCIES.md and vendor ThirdPartyNotices."}]
+  },
+  "components": [
+    {
+      "type": "framework", "bom-ref": "netcore", "name": "Microsoft.NETCore.App", "version": "8.0.32",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "externalReferences": [{"type": "vcs", "url": "https://github.com/dotnet/runtime"}]
+    },
+    {
+      "type": "framework", "bom-ref": "wpf", "name": "Microsoft.WindowsDesktop.App / WPF", "version": "8.0.32",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "externalReferences": [{"type": "vcs", "url": "https://github.com/dotnet/wpf"}]
+    },
+    {
+      "type": "file", "bom-ref": "dotnet-apphost", "name": "Generated .NET native apphost template", "version": "8.0.32",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "externalReferences": [{"type": "vcs", "url": "https://github.com/dotnet/runtime"}],
+      "properties": [{"name": "provenance.scope", "value": "Upstream native host template transformed by the SDK for SafeSeat; no signing-service eligibility or signature is asserted."}]
+    },
+    {
+      "type": "application", "bom-ref": "sdk", "name": ".NET SDK (build only)", "version": "8.0.426",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "hashes": [{"alg": "SHA-512", "content": "10261657109f1c62126f106a9ac966739b025b5f6b4a9f88ab7c6e73cacce9aec771895daa3267b8da933a83c32ee91bf458dc6704e1ddcd9bcf0d5edd036abb"}],
+      "externalReferences": [{"type": "distribution", "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.426/dotnet-sdk-8.0.426-win-x64.zip"}],
+      "properties": [{"name": "license.scope", "value": "SDK primary license; bundled components have separate vendor notices."}]
+    },
+    {
+      "type": "application", "bom-ref": "roslyn", "name": "Roslyn C# compiler (build only)", "version": "4.11.0-3.25569.22",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "externalReferences": [{"type": "vcs", "url": "https://github.com/dotnet/roslyn"}]
+    },
+    {
+      "type": "application", "bom-ref": "powershell", "name": "PowerShell (optional scripts)",
+      "licenses": [{"license": {"id": "MIT"}}],
+      "externalReferences": [{"type": "vcs", "url": "https://github.com/PowerShell/PowerShell"}],
+      "properties": [{"name": "requirement.minimum-version", "value": "7.0"}]
+    },
+    {
+      "type": "operating-system", "bom-ref": "windows", "name": "Windows (external host requirement)",
+      "licenses": [{"license": {"name": "Applicable Microsoft Windows proprietary host license; not redistributed"}}],
+      "properties": [{"name": "host.scope", "value": "External Windows host; no operating-system binary is redistributed. Target deployment, physical behavior and applicable licensing require separate validation."}]
+    }
+  ],
+  "dependencies": [
+    {"ref": "safeseat", "dependsOn": ["netcore", "wpf", "dotnet-apphost", "windows"]},
+    {"ref": "wpf", "dependsOn": ["netcore", "windows"]},
+    {"ref": "netcore", "dependsOn": ["windows"]},
+    {"ref": "dotnet-apphost", "dependsOn": ["netcore", "windows"]},
+    {"ref": "sdk", "dependsOn": ["roslyn", "netcore"]},
+    {"ref": "roslyn", "dependsOn": ["netcore"]},
+    {"ref": "powershell", "dependsOn": []},
+    {"ref": "windows", "dependsOn": []}
+  ]
+}
