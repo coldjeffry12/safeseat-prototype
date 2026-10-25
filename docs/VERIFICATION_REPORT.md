@@ -1,14 +1,24 @@
 # Verification of the unsigned research release
 
-This is an unsigned research release. The original arbitrary-application multiseat requirement remains incomplete. All physical acceptance criteria remain NOT TESTED.
+The published research release and this unreleased 0.1.1-dev candidate are unsigned. The original arbitrary-application multiseat requirement remains incomplete. All physical acceptance criteria remain NOT TESTED.
 
 ## Repeatable software checks
 
 Run `scripts/build.ps1 -SkipUiSmoke` on Windows with the SDK pinned in `global.json`. It restores without external NuGet feeds, builds the solution with warnings treated as errors, runs the core console tests, and runs adapter checks with fake native registration backends. No production observer or GUI is started by those commands.
 
-The current software suite contains 36 core tests and 210 adapter checks: 62 ABI/packet/foreground-code checks, 22 PnP-group checks, 20 readiness/topology checks and 106 simulated registration/recovery checks. Test output is local build evidence, not proof of physical two-user independence.
+The candidate software suite contains 36 core tests and 270 adapter checks: 69 ABI/packet/foreground/shared-identity checks, 22 PnP-group checks, 20 readiness/topology checks and 159 simulated registration/recovery checks. Test output is software evidence, not proof of physical two-user independence.
 
 Run `tests/SafeSeat.PackageTests/Verify-Package.ps1` after a successful build to check that synthetic private reports, saved profiles, stale files, debug symbols and a chosen output subtree do not enter public packages. Existing local files are preserved. Run `scripts/safety-scan.ps1` for supporting source/manifest checks; it is not an antivirus scan or a complete security audit.
+
+## Unreleased candidate verification, 25 October 2026
+
+The known-handle regression was first run against the original production observer. A simulated handle changed from identity A to B without a notification or refresh, and the old code emitted stale A input. The regression failed before the change. With current identity revalidation, the final local Release build passed with zero warnings/errors, all 36 core tests and 270 adapter checks. No production input observer, native inventory, GUI or apphost was launched.
+
+Recovery checks cover changed/unavailable/throwing identity lookup, kind mismatch, pause before refresh, cleanup and explicit restart, ignored-message probe counters, packet-read errors, refresh failure, and packets invalidated by reentrant Stop/Refresh/restart. Static ABI checks cover the 32-byte type-query structure. These checks do not exercise the actual native queries or establish their timing/performance on hardware.
+
+The source/manifest scan passed, and the candidate package privacy regression passed all 545 checks. It packaged the 57 allowlisted source/documentation files while excluding private reports, profiles, caches and debug symbols. These supporting checks do not certify antivirus status, Windows execution permission or physical operation.
+
+This candidate is separate from the v0.1.0 release evidence below. No new signed or unsigned binary release is claimed by this source change. The provider application still concerns the preserved review package; receipt is not approval of this candidate.
 
 ## Verified release evidence
 
@@ -36,4 +46,4 @@ Private machine inventories, raw diagnostics, local file paths, operator evidenc
 
 ## Unverified behavior
 
-The revised renderer has compilation verification only. Actual simultaneous devices, source ownership, visible placement/DPI, lock/suspend/USB recovery, Stop recovery, runtime performance and arbitrary third-party app independence have not passed physical acceptance. Input-handle identity is cached between notifications; reuse of an already-known handle before a change notification remains physically unverified. Do not convert simulated passes into hardware or compatibility claims.
+The revised renderer has compilation verification only. Actual simultaneous devices, source ownership, visible placement/DPI, lock/suspend/USB recovery, Stop recovery, runtime performance and arbitrary third-party app independence have not passed physical acceptance. The candidate detects observable changes in a known handle's current interface-path ID/kind; unchanged reused paths and query/packet races remain unresolved by this check. Native query behavior, notification ordering and lookup overhead remain physically unverified. Do not convert simulated passes into hardware or compatibility claims.

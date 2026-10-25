@@ -175,14 +175,16 @@ internal static class RegistrationLifecycleChecks
                     "background/unknown generation code ignored before read");
             Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 0) is null, "null packet token ignored");
             Check(observer.ProcessMessage(12345, 0, 1) is null, "unrelated window message ignored");
-            Check(messages.PacketReads == 0, "fake-active background messages never read packet content");
+            Check(messages.PacketReads == 0 && messages.IdentityReads == 0,
+                "fake-active ignored messages never read packet content or current identity");
             var routed = observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1);
-            Check(routed?.Input?.DeviceId == "device-one" && messages.PacketReads == 1,
+            Check(routed?.Input?.DeviceId == "device-one" && messages.PacketReads == 1 && messages.IdentityReads == 1,
                 "known source routes only a simulated foreground packet");
             messages.Packet = Packet(99);
             var unknown = observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1);
             Check(unknown is { Kind: RawInputMessageKind.DevicesChanged, Input: null } && messages.InventoryCalls == 2,
                 "unknown handle reports a topology change rather than guessing a source");
+            Check(messages.IdentityReads == 1, "unknown handle does not query a guessed current identity");
             int unknownReads = messages.PacketReads;
             Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null && messages.PacketReads == unknownReads,
                 "unknown handle pauses all subsequent packet reads");
@@ -194,12 +196,22 @@ internal static class RegistrationLifecycleChecks
             Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null && messages.PacketReads == pausedReads,
                 "changed ambiguity during Refresh pauses before reading more packets");
             observer.Stop(); observer.Start(12);
+            int ambiguousIdentityReads = messages.IdentityReads;
             Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null, "ambiguous identity never routes");
+            Check(messages.IdentityReads == ambiguousIdentityReads, "ambiguous cached source never performs an identity query");
             messages.Inventory = KnownInventory(1, "device-one", kind: RawDeviceKind.Mouse);
             observer.Stop(); observer.Start(12);
-            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null, "device kind mismatch never routes");
+            int kindMismatchIdentityReads = messages.IdentityReads;
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is { Kind: RawInputMessageKind.DevicesChanged, Input: null },
+                "cached device kind versus packet mismatch pauses rather than routes");
+            Check(messages.IdentityReads == kindMismatchIdentityReads,
+                "cached kind mismatch pauses without a redundant identity query");
+            messages.Inventory = KnownInventory(1, "device-one");
+            observer.Stop(); observer.Start(12);
             messages.Packet = null;
+            int invalidIdentityReads = messages.IdentityReads;
             Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null, "invalid simulated packet ignored");
+            Check(messages.IdentityReads == invalidIdentityReads, "invalid packet has no identity query");
         }
 
         var hotplug = new FakeBackend { Inventory = KnownInventory(1, "old-identity"), Packet = Packet(1) };
@@ -318,6 +330,156 @@ internal static class RegistrationLifecycleChecks
                 "unchanged source map can resume after descriptive metadata refresh");
         }
 
+        // No change notification or public Refresh has run: the observer still caches identity A.
+        var reusedHandle = new FakeBackend { Inventory = KnownInventory(1, "identity-A"), Packet = Packet(1) };
+        using (var observer = new RawInputObserver(reusedHandle))
+        {
+            observer.Start(12);
+            reusedHandle.Inventory = KnownInventory(1, "identity-B");
+            var changed = observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1);
+            Check(changed is { Kind: RawInputMessageKind.DevicesChanged, Input: null },
+                "changed current identity on a cached handle cannot emit the old seat identity");
+            Check(reusedHandle.IdentityReads == 1 && reusedHandle.InventoryCalls == 2,
+                "changed known handle queries current identity once then refreshes metadata");
+            int reads = reusedHandle.PacketReads;
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null &&
+                reusedHandle.PacketReads == reads && reusedHandle.IdentityReads == 1,
+                "changed known handle pauses subsequent packet and identity reads");
+            observer.Refresh();
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null && reusedHandle.PacketReads == reads,
+                "public Refresh cannot revive a changed-identity pause");
+            Throws<InvalidOperationException>(() => observer.Start(12), "changed known identity needs Stop before Start");
+            observer.Stop(); observer.Start(12);
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1)?.Input?.DeviceId == "identity-B",
+                "changed identity may route only after explicit cleanup and fresh Start");
+        }
+
+        foreach (var change in new (string Name, RawInputInventory Inventory)[]
+        {
+            ("different current kind", KnownInventory(1, "identity-A", kind: RawDeviceKind.Mouse)),
+            ("current handle absent", new RawInputInventory(new([], [], []), new Dictionary<nint, RawDeviceDescriptor>()))
+        })
+        {
+            var backend = new FakeBackend { Inventory = KnownInventory(1, "identity-A"), Packet = Packet(1) };
+            using var observer = new RawInputObserver(backend);
+            observer.Start(12);
+            backend.Inventory = change.Inventory;
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is { Kind: RawInputMessageKind.DevicesChanged, Input: null },
+                "fresh identity query fails closed for " + change.Name);
+            Check(backend.IdentityReads == 1 && backend.InventoryCalls == 2,
+                "fresh identity mismatch pauses then refreshes for " + change.Name);
+            int reads = backend.PacketReads;
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null &&
+                backend.PacketReads == reads && backend.IdentityReads == 1,
+                "fresh identity failure keeps subsequent reads paused for " + change.Name);
+            Throws<InvalidOperationException>(() => observer.Start(12), "fresh identity failure requires cleanup for " + change.Name);
+        }
+
+        var identityFailure = new FakeBackend { Inventory = KnownInventory(1, "identity-A"), Packet = Packet(1) };
+        using (var observer = new RawInputObserver(identityFailure))
+        {
+            observer.Start(12);
+            identityFailure.IdentityError = new Win32Exception(6, "Simulated identity lookup failure");
+            Throws<Win32Exception>(() => observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1), "identity query error");
+            int packetReads = identityFailure.PacketReads;
+            Check(observer.IsRunning && observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null &&
+                identityFailure.PacketReads == packetReads && identityFailure.IdentityReads == 1,
+                "identity query error pauses reads and retains native cleanup obligation");
+            observer.Refresh();
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null && identityFailure.PacketReads == packetReads,
+                "Refresh cannot revive identity-query error");
+            Throws<InvalidOperationException>(() => observer.Start(12), "identity query error requires cleanup");
+            observer.Stop(); identityFailure.IdentityError = null; observer.Start(12);
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1)?.Input?.DeviceId == "identity-A",
+                "successful cleanup and fresh Start recover identity query failure");
+        }
+
+        var unchangedIdentity = new FakeBackend { Inventory = KnownInventory(1, "identity-A"), Packet = Packet(1) };
+        using (var observer = new RawInputObserver(unchangedIdentity))
+        {
+            observer.Start(12);
+            var descriptive = unchangedIdentity.Inventory.Devices[1] with { DisplayName = "Updated descriptive metadata" };
+            unchangedIdentity.Inventory = new RawInputInventory(new([descriptive], [], []),
+                new Dictionary<nint, RawDeviceDescriptor> { [1] = descriptive });
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1)?.Input?.DeviceId == "identity-A",
+                "fresh identity comparison ignores unrelated descriptive metadata");
+            Check(unchangedIdentity.IdentityReads == 1 && unchangedIdentity.InventoryCalls == 1,
+                "unchanged source uses a narrow query, never per-packet full enumeration");
+        }
+
+        var packetFailure = new FakeBackend { Inventory = KnownInventory(1, "identity-A"), Packet = Packet(1) };
+        using (var observer = new RawInputObserver(packetFailure))
+        {
+            observer.Start(12);
+            packetFailure.PacketError = new Win32Exception(6, "Simulated packet read failure");
+            Throws<Win32Exception>(() => observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1), "packet query error");
+            Check(observer.IsRunning && packetFailure.IdentityReads == 0,
+                "failed packet read never reaches identity query and retains cleanup");
+            int packetReads = packetFailure.PacketReads;
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null && packetFailure.PacketReads == packetReads,
+                "packet read exception pauses subsequent reads");
+            observer.Refresh();
+            Throws<InvalidOperationException>(() => observer.Start(12), "packet query error requires cleanup");
+            observer.Stop(); packetFailure.PacketError = null; observer.Start(12);
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1)?.Input?.DeviceId == "identity-A",
+                "fresh run can recover from packet query error");
+        }
+
+        var identityRefreshFailure = new FakeBackend { Inventory = KnownInventory(1, "identity-A"), Packet = Packet(1) };
+        using (var observer = new RawInputObserver(identityRefreshFailure))
+        {
+            observer.Start(12);
+            identityRefreshFailure.Inventory = KnownInventory(1, "identity-B");
+            identityRefreshFailure.InventoryError = new InvalidOperationException("Simulated changed-identity refresh failure");
+            Throws<InvalidOperationException>(() => observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1),
+                "changed-identity metadata refresh error");
+            Check(observer.IsRunning && observer.CurrentInventory.Devices.Count == 0 && identityRefreshFailure.IdentityReads == 1,
+                "failed changed-identity refresh clears cached discovery and retains cleanup");
+            int packetReads = identityRefreshFailure.PacketReads;
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null && identityRefreshFailure.PacketReads == packetReads,
+                "failed changed-identity refresh cannot read another packet");
+            identityRefreshFailure.InventoryError = null;
+            observer.Refresh();
+            Throws<InvalidOperationException>(() => observer.Start(12), "failed identity refresh still requires cleanup");
+            observer.Stop(); observer.Start(12);
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1)?.Input?.DeviceId == "identity-B",
+                "cleanup and fresh Start can admit identity after refresh error");
+        }
+
+        foreach (string operation in new[] { "Stop", "Refresh", "Stop then Start" })
+        foreach (bool duringIdentity in new[] { false, true })
+        {
+            var backend = new FakeBackend { Inventory = KnownInventory(1, "identity-A"), Packet = Packet(1) };
+            using var observer = new RawInputObserver(backend);
+            observer.Start(12);
+            Action changeState = () =>
+            {
+                backend.BeforePacketRead = null;
+                backend.BeforeIdentityRead = null;
+                if (operation == "Refresh") observer.Refresh();
+                else
+                {
+                    observer.Stop();
+                    if (operation == "Stop then Start") observer.Start(12);
+                }
+            };
+            if (duringIdentity) backend.BeforeIdentityRead = changeState;
+            else backend.BeforePacketRead = changeState;
+            Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null,
+                "in-flight packet is dropped after reentrant " + operation + (duringIdentity ? " during identity read" : " during packet read"));
+            Check(backend.IdentityReads == (duringIdentity ? 1 : 0),
+                "reentrant state change cannot admit another identity query for the old packet");
+            if (operation == "Stop")
+            {
+                int packetReads = backend.PacketReads;
+                Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1) is null && backend.PacketReads == packetReads,
+                    "reentrant Stop stays stopped");
+            }
+            else
+                Check(observer.ProcessMessage(RawInputObserver.WM_INPUT, 0, 1)?.Input?.DeviceId == "identity-A",
+                    "only a subsequent packet can enter the refreshed or restarted state");
+        }
+
         // Earlier failure paths must all have released the static owner after their successful retries.
         var finalBackend = new FakeBackend();
         using (var observer = new RawInputObserver(finalBackend))
@@ -343,7 +505,11 @@ internal static class RegistrationLifecycleChecks
         public WindowOwnership Ownership { get; set; } = WindowOwnership.Owned;
         public Exception? PlatformError { get; set; }
         public Exception? InventoryError { get; set; }
+        public Exception? IdentityError { get; set; }
+        public Exception? PacketError { get; set; }
         public Action? BeforeInventoryRead { get; set; }
+        public Action? BeforePacketRead { get; set; }
+        public Action? BeforeIdentityRead { get; set; }
         public RawInputInventory Inventory { get; set; } = new(new([], [], []), new Dictionary<nint, RawDeviceDescriptor>());
         public ParsedRawPacket? Packet { get; set; }
         public Queue<RegistrationResult> Results { get; } = new();
@@ -352,7 +518,8 @@ internal static class RegistrationLifecycleChecks
         public int ValidateCalls { get; private set; }
         public int InventoryCalls { get; private set; }
         public int PacketReads { get; private set; }
-        public int TotalCalls => EnsureCalls + ValidateCalls + InventoryCalls + PacketReads + Registrations.Count;
+        public int IdentityReads { get; private set; }
+        public int TotalCalls => EnsureCalls + ValidateCalls + InventoryCalls + PacketReads + IdentityReads + Registrations.Count;
 
         public void EnsureSupportedPlatform()
         {
@@ -383,7 +550,18 @@ internal static class RegistrationLifecycleChecks
         public ParsedRawPacket? ReadPacket(nint rawInput)
         {
             PacketReads++;
+            BeforePacketRead?.Invoke();
+            if (PacketError is not null) throw PacketError;
             return Packet;
+        }
+
+        public RawDeviceIdentity? ReadDeviceIdentity(nint handle)
+        {
+            IdentityReads++;
+            BeforeIdentityRead?.Invoke();
+            if (IdentityError is not null) throw IdentityError;
+            return Inventory.Devices.TryGetValue(handle, out var descriptor)
+                ? new RawDeviceIdentity(descriptor.Id, descriptor.Kind) : null;
         }
     }
 }

@@ -68,7 +68,7 @@ public static class WindowsInventory
                 bool ambiguous = string.IsNullOrWhiteSpace(path);
                 string id = ambiguous
                     ? $"raw-session-{Guid.NewGuid():N}"
-                    : $"raw-{kind.ToString().ToLowerInvariant()}-{Hash(path!)}";
+                    : CreateDeviceIdentity(path!, kind).Id;
                 var metadata = path is null ? new PnpMetadata() : TryReadPnpMetadata(path);
                 string name = metadata.FriendlyName ?? BuildFallbackName(kind, path);
                 string note = ambiguous
@@ -103,23 +103,52 @@ public static class WindowsInventory
         throw new InvalidOperationException("Raw device list changed repeatedly during enumeration. Retry refresh after hot-plug activity settles.");
     }
 
-    private static string? TryReadDevicePath(nint handle, List<string> warnings)
+    /// <summary>
+    /// Lightweight current-handle query. It does not enumerate PnP metadata or displays.
+    /// These separate native reads do not constitute an atomic device-generation check.
+    /// </summary>
+    internal static RawDeviceIdentity? ReadDeviceIdentity(nint handle)
+    {
+        EnsureWindows();
+        if (handle == 0) return null;
+        uint size = checked((uint)Marshal.SizeOf<Native.RawDeviceInfo>());
+        var information = new Native.RawDeviceInfo { Size = size };
+        uint copied = Native.GetRawInputDeviceInformation(handle, Native.RidiDeviceInfo, ref information, ref size);
+        if (copied != Marshal.SizeOf<Native.RawDeviceInfo>() || size != Marshal.SizeOf<Native.RawDeviceInfo>() ||
+            information.Size != Marshal.SizeOf<Native.RawDeviceInfo>() || information.Type > 1)
+            return null;
+        RawDeviceKind kind = information.Type == 0 ? RawDeviceKind.Mouse : RawDeviceKind.Keyboard;
+        string? path = TryReadDevicePath(handle);
+        return string.IsNullOrWhiteSpace(path) ? null : CreateDeviceIdentity(path, kind);
+    }
+
+    internal static RawDeviceIdentity CreateDeviceIdentity(string path, RawDeviceKind kind)
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("A nonempty interface path is required.", nameof(path));
+        if (kind is not (RawDeviceKind.Mouse or RawDeviceKind.Keyboard)) throw new ArgumentOutOfRangeException(nameof(kind));
+        return new RawDeviceIdentity($"raw-{kind.ToString().ToLowerInvariant()}-{Hash(path)}", kind);
+    }
+
+    private static string? TryReadDevicePath(nint handle, List<string>? warnings = null)
     {
         uint chars = 0;
         if (Native.GetRawInputDeviceInfo(handle, Native.RidiDeviceName, 0, ref chars) == uint.MaxValue)
         {
-            warnings.Add($"A raw device name could not be read (Win32 {Marshal.GetLastWin32Error()}); it may have disconnected.");
+            warnings?.Add($"A raw device name could not be read (Win32 {Marshal.GetLastWin32Error()}); it may have disconnected.");
             return null;
         }
         if (chars is 0 or > 32768)
             return null;
         var text = new StringBuilder(checked((int)chars + 1));
-        chars = checked((uint)text.Capacity);
+        uint capacity = checked((uint)text.Capacity);
+        chars = capacity;
         if (Native.GetRawInputDeviceName(handle, Native.RidiDeviceName, text, ref chars) == uint.MaxValue)
         {
-            warnings.Add($"A raw device name changed or became unavailable (Win32 {Marshal.GetLastWin32Error()}).");
+            warnings?.Add($"A raw device name changed or became unavailable (Win32 {Marshal.GetLastWin32Error()}).");
             return null;
         }
+        if (chars == 0 || chars > capacity || text.Length > 32768)
+            return null;
         return text.ToString().TrimEnd('\0');
     }
 

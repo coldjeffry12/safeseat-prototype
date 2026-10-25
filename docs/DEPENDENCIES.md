@@ -4,7 +4,7 @@ SafeSeat has **zero PackageReference dependencies**. The restore source list is 
 
 | Component | Declared version or requirement | Purpose | License / provenance | Main risk |
 | --- | --- | --- | --- | --- |
-| SafeSeat original source | 0.1.0 | App, adapters, tests | [MIT](../LICENSE) | Unverified physical behavior; no security isolation between seats |
+| SafeSeat original source | 0.1.1-dev (unreleased) | App, adapters, tests | [MIT](../LICENSE) | Unverified physical behavior; no security isolation between seats |
 | .NET SDK | 8.0.426, MSBuild 17.11.69 | Build only | [dotnet/sdk MIT](https://github.com/dotnet/sdk/blob/main/LICENSE.TXT), official Microsoft archive | Trusted compiler/toolchain dependency; maintain security updates |
 | Roslyn C# compiler | 4.11.0-3.25569.22, commit 3fb752d4 | SDK build tool | [dotnet/roslyn MIT](https://github.com/dotnet/roslyn/blob/main/License.txt) | SDK includes additional third-party notices |
 | Microsoft.NETCore.App | .NET 8; reference SDK distribution supplies 8.0.32 | Runtime, JSON, collections, SHA-256 | [dotnet/runtime MIT](https://github.com/dotnet/runtime/blob/main/LICENSE.TXT) | Installed compatible runtime patch can differ; framework internals have separate notices |

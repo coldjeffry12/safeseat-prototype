@@ -1,6 +1,6 @@
 # Acceptance tests
 
-**The full project requirement is not demonstrated.** SafeSeat 0.1.0 has no public physical two-seat acceptance result. This checklist separates physical acceptance from automated software tests: a build, simulated event replay or source inspection cannot pass a physical criterion.
+**The full project requirement is not demonstrated.** Neither published SafeSeat 0.1.0 nor the unreleased 0.1.1-dev candidate has a public physical two-seat acceptance result. This checklist separates physical acceptance from automated software tests: a build, simulated event replay or source inspection cannot pass a physical criterion.
 
 All criteria below remain **NOT TESTED**. If Windows policy prevents a permitted run of `SafeSeat.exe`, record the execution blocker and stop. Do not weaken protections or run the DLL under another executable to continue.
 
@@ -83,6 +83,6 @@ Finally simulate an unresponsive UI only in an expendable development run and en
 
 ## Automated evidence is narrower
 
-The default console suites contain 36 core checks and 210 adapter checks for seat assignment, settings validation, reconnect policy, monitor containment, packet parsing and simulated interleaved input. Lifecycle checks use a fake backend, not production input registration. Build/test commands and any recorded outcomes belong in the public [verification report](VERIFICATION_REPORT.md). Passing these checks demonstrates only the software properties tested.
+The candidate console suites contain 36 core checks and 270 adapter checks for seat assignment, settings validation, reconnect policy, monitor containment, packet parsing, current identity comparison and simulated interleaved input. Lifecycle checks use a fake backend, not production input registration. Build/test commands and any recorded outcomes belong in the public [verification report](VERIFICATION_REPORT.md). Passing these checks demonstrates only the software properties tested.
 
 Hardware enumeration, per-monitor placement, lifecycle/privacy timing, native recovery and arbitrary-application behavior require separate manual acceptance. Keep identifying hardware details in local test records; publish only reviewed, redacted results. Automated checks must never change the physical table above to PASS.
