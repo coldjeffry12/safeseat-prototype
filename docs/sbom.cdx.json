@@ -7,7 +7,7 @@
       "type": "application",
       "bom-ref": "safeseat",
       "name": "SafeSeat controlled-app research prototype",
-      "version": "0.1.0",
+      "version": "0.1.1-dev",
       "licenses": [{"license": {"id": "MIT"}}],
       "description": "Limited app-owned input demonstration; arbitrary Windows multiseat is incomplete."
     },

@@ -1,9 +1,12 @@
 # Public research checkpoint
 
+Unreleased candidate: **0.1.1-dev**. The published v0.1.0 release and its artifacts remain unchanged.
+
 - [x] Source-aware controlled-app implementation, manual assignments and bounded per-seat state.
 - [x] Default-off, foreground-only observation; explicit Stop and conservative topology recovery.
 - [x] Core and adapter regression suites; no production input registration in default console tests.
 - [x] Corrected semantic monitor-seat aliases, unknown-handle reconnect acceptance and multiline text positioning.
+- [x] Candidate current-identity guard detects observable known-handle changes; red/green simulated regression and recovery checks passed.
 - [x] Private-machine diagnostics excluded from public preparation; public package privacy regression supplied.
 - [x] Unsigned GitHub build workflow and signing/privacy policy drafts prepared.
 - [x] Public repository created: [coldjeffry12/safeseat-prototype](https://github.com/coldjeffry12/safeseat-prototype).
