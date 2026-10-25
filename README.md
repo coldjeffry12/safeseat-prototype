@@ -1,6 +1,8 @@
 # SafeSeat
 
-SafeSeat 0.1.0 is an MIT-licensed Windows input research prototype. It enumerates monitors and Raw Input keyboard/mouse collections and routes explicitly enabled observations into two windows owned by SafeSeat.
+SafeSeat is an MIT-licensed Windows input research prototype. It enumerates monitors and Raw Input keyboard/mouse collections and routes explicitly enabled observations into two windows owned by SafeSeat.
+
+This source is the **unreleased 0.1.1-dev candidate** for current-device identity revalidation. The published unsigned [v0.1.0 prerelease](https://github.com/coldjeffry12/safeseat-prototype/releases/tag/v0.1.0) and its artifacts remain unchanged. Candidate software checks and limits are recorded in the [verification report](docs/VERIFICATION_REPORT.md).
 
 **It does not provide two independent Windows users or independent Chrome, Word, File Explorer or game input. Physical two-seat acceptance remains NOT TESTED. This release is unsigned; no signing sponsorship or approval is claimed.**
 
