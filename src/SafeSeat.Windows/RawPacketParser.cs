@@ -71,6 +71,8 @@ public static class RawPacketParser
         Check(Marshal.SizeOf<Native.RawInputHeader>(), IntPtr.Size == 8 ? 24 : 16, "RAWINPUTHEADER size");
         Check(Marshal.SizeOf<Native.RawInputDeviceList>(), IntPtr.Size == 8 ? 16 : 8, "RAWINPUTDEVICELIST size");
         Check(Marshal.SizeOf<Native.RawInputDevice>(), IntPtr.Size == 8 ? 16 : 12, "RAWINPUTDEVICE size");
+        Check(Marshal.SizeOf<Native.RawDeviceInfo>(), 32, "RID_DEVICE_INFO size");
+        Check(Marshal.OffsetOf<Native.RawDeviceInfo>(nameof(Native.RawDeviceInfo.Type)).ToInt32(), 4, "RID_DEVICE_INFO dwType offset");
         Check(Marshal.OffsetOf<Native.RawInputHeader>(nameof(Native.RawInputHeader.Device)).ToInt32(), 8, "RAWINPUTHEADER hDevice offset");
         Check(Marshal.SizeOf<Native.MonitorInfo>(), 104, "MONITORINFOEXW size");
         Check(Marshal.SizeOf<Native.DisplayDevice>(), 840, "DISPLAY_DEVICEW size");

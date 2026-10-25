@@ -7,6 +7,7 @@ internal static class Native
 {
     internal const uint RidInput = 0x10000003;
     internal const uint RidiDeviceName = 0x20000007;
+    internal const uint RidiDeviceInfo = 0x2000000b;
     internal const uint RidevDevNotify = 0x00002000;
     internal const uint RidevRemove = 0x00000001;
     internal const int ErrorInsufficientBuffer = 122;
@@ -14,6 +15,15 @@ internal static class Native
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct RawInputDeviceList { internal nint Device; internal uint Type; }
+
+    // RID_DEVICE_INFO: two DWORDs followed by a union whose largest member is
+    // RID_DEVICE_INFO_KEYBOARD (six DWORDs). Only the type is needed here.
+    [StructLayout(LayoutKind.Explicit, Size = 32)]
+    internal struct RawDeviceInfo
+    {
+        [FieldOffset(0)] internal uint Size;
+        [FieldOffset(4)] internal uint Type;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct RawInputDevice
@@ -89,6 +99,9 @@ internal static class Native
 
     [DllImport("user32.dll", EntryPoint = "GetRawInputDeviceInfoW", CharSet = CharSet.Unicode, SetLastError = true)]
     internal static extern uint GetRawInputDeviceInfo(nint device, uint command, nint data, ref uint size);
+
+    [DllImport("user32.dll", EntryPoint = "GetRawInputDeviceInfoW", CharSet = CharSet.Unicode, SetLastError = true)]
+    internal static extern uint GetRawInputDeviceInformation(nint device, uint command, ref RawDeviceInfo data, ref uint size);
 
     [DllImport("user32.dll", EntryPoint = "GetRawInputDeviceInfoW", CharSet = CharSet.Unicode, SetLastError = true)]
     internal static extern uint GetRawInputDeviceName(nint device, uint command, StringBuilder data, ref uint size);

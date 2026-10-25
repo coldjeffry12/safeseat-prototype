@@ -11,6 +11,9 @@ internal sealed record RawInputInventory(
 
 internal readonly record struct RegistrationResult(bool Succeeded, int ErrorCode = 0);
 
+// A current interface-path hash and type, not a physical-device generation token.
+internal sealed record RawDeviceIdentity(string Id, RawDeviceKind Kind);
+
 internal interface IRawInputBackend
 {
     void EnsureSupportedPlatform();
@@ -18,6 +21,7 @@ internal interface IRawInputBackend
     RawInputInventory ReadInventory();
     RegistrationResult Register(uint flags, nint hwnd);
     ParsedRawPacket? ReadPacket(nint rawInput);
+    RawDeviceIdentity? ReadDeviceIdentity(nint handle);
 }
 
 internal sealed class Win32RawInputBackend : IRawInputBackend
@@ -49,6 +53,8 @@ internal sealed class Win32RawInputBackend : IRawInputBackend
             checked((uint)Marshal.SizeOf<Native.RawInputDevice>()));
         return new RegistrationResult(success, success ? 0 : Marshal.GetLastWin32Error());
     }
+
+    public RawDeviceIdentity? ReadDeviceIdentity(nint handle) => WindowsInventory.ReadDeviceIdentity(handle);
 
     public ParsedRawPacket? ReadPacket(nint rawInput)
     {

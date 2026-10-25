@@ -142,8 +142,13 @@ public sealed class RawInputObserver : IDisposable
         }
         if (message != WM_INPUT || lParam == 0 || !IsForegroundInputCode(wParam))
             return null;
-        var packet = _backend.ReadPacket(lParam);
-        if (packet is null)
+        // A refresh or Stop/Start during a backend read invalidates this in-flight packet.
+        // Refresh owns and replaces the dictionary; a new run must not inherit older input.
+        var sourceMap = _devices;
+        ParsedRawPacket? packet;
+        try { packet = _backend.ReadPacket(lParam); }
+        catch { _acceptInput = false; throw; }
+        if (packet is null || !_acceptInput || !ReferenceEquals(sourceMap, _devices))
             return null;
         nint handle = IntPtr.Size == 8
             ? unchecked((nint)(long)packet.DeviceHandle)
@@ -152,13 +157,28 @@ public sealed class RawInputObserver : IDisposable
         {
             // A new handle can be a reconnect of an already assigned path. Discovery must not
             // silently admit its first packet to that saved seat, even if its identity hash matches.
-            _acceptInput = false;
-            return new RawInputMessage(RawInputMessageKind.DevicesChanged, Inventory: Refresh());
+            return PauseForDeviceChange();
         }
-        if (descriptor.IsIdentityAmbiguous || descriptor.Kind != packet.Kind)
+        if (descriptor.IsIdentityAmbiguous)
             return null; // Never guess the physical source of an event.
+        if (descriptor.Kind != packet.Kind)
+            return PauseForDeviceChange();
+        RawDeviceIdentity? currentIdentity;
+        try { currentIdentity = _backend.ReadDeviceIdentity(handle); }
+        catch { _acceptInput = false; throw; }
+        if (!_acceptInput || !ReferenceEquals(sourceMap, _devices))
+            return null;
+        if (currentIdentity is null || currentIdentity.Kind != descriptor.Kind ||
+            !StringComparer.Ordinal.Equals(currentIdentity.Id, descriptor.Id))
+            return PauseForDeviceChange();
         return new RawInputMessage(RawInputMessageKind.DeviceInput,
             new DeviceInput(descriptor.Id, packet.Kind, Stopwatch.GetTimestamp(), packet.Keyboard, packet.Mouse));
+    }
+
+    private RawInputMessage PauseForDeviceChange()
+    {
+        _acceptInput = false;
+        return new RawInputMessage(RawInputMessageKind.DevicesChanged, Inventory: Refresh());
     }
 
     public void Dispose()
