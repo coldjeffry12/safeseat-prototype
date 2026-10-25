@@ -98,6 +98,25 @@ Check(RawInputObserver.IsForegroundInputCode(0x100), "foreground code extracted 
 Check(!RawInputObserver.IsForegroundInputCode(0x101), "background code extracted despite high bits");
 Check(!RawInputObserver.IsForegroundInputCode(-1), "invalid negative input code rejected");
 
+var identity = WindowsInventory.CreateDeviceIdentity("synthetic-interface", RawDeviceKind.Keyboard);
+Check(identity.Id == "raw-keyboard-ea52e6b652b80f85c864f4607e13465b5ea159425c08572cbb1ca4be62c9be12" &&
+    identity.Kind == RawDeviceKind.Keyboard, "shared current/enumerated identity uses the expected path hash and kind");
+Check(WindowsInventory.CreateDeviceIdentity("SYNTHETIC-INTERFACE", RawDeviceKind.Keyboard) == identity,
+    "interface path casing normalizes consistently for inventory and current queries");
+Check(WindowsInventory.CreateDeviceIdentity("synthetic-interface", RawDeviceKind.Mouse).Id != identity.Id,
+    "device kind remains part of the hashed interface identity");
+foreach (string invalidPath in new[] { "", " ", "\t" })
+{
+    bool rejected = false;
+    try { WindowsInventory.CreateDeviceIdentity(invalidPath, RawDeviceKind.Keyboard); }
+    catch (ArgumentException) { rejected = true; }
+    Check(rejected, "unavailable interface identity is rejected by shared helper");
+}
+bool unsupportedKindRejected = false;
+try { WindowsInventory.CreateDeviceIdentity("synthetic-interface", RawDeviceKind.Other); }
+catch (ArgumentOutOfRangeException) { unsupportedKindRejected = true; }
+Check(unsupportedKindRejected, "unsupported device kind has no routable interface identity");
+
 using (var stopped = new RawInputObserver())
 {
     Check(!stopped.IsRunning, "observer initially stopped");
